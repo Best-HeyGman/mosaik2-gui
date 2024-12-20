@@ -1,0 +1,124 @@
+#!/bin/sh
+# SPDX-License-Identifier: GPL-3.0-or-later
+# © 2024 Stephan Hegemann
+
+# dependencies: zenity ImageMagick
+
+# Yes, this is exactly what it looks like and I will not apologize for it. Zenity has given me a power that I probably should not have, because now I can hit even more problems with my shiny hammer called a shellscript.
+
+set -e
+
+# for debugging
+set -x
+
+
+mosaik2_bin='mosaik2'
+
+mosaik2_gui_work_dir="$XDG_CACHE_HOME"/mosaik2-gui
+mosaik2_gui_data_dir="$XDG_DATA_HOME"/mosaik2-gui
+mosaik2_logfile="$XDG_DATA_HOME"/mosaik2-gui/mosaik2_log_last_operation.log
+create_mosaic_with_duplicates=1
+
+
+cd ~
+
+# first, clean up
+rm -rf "$mosaik2_gui_work_dir"
+mkdir -p "$mosaik2_gui_work_dir"
+rm -f "$mosaik2_logfile"
+mkdir -p "$mosaik2_gui_data_dir"
+touch "$mosaik2_logfile"
+
+# select the template file
+zenity --title='mosaik2-gui template image' --info --text='Please select the <b>image that shall be recreated as an mosaic</b>.\n\nOnly .jpg and .jpeg files are supported at the moment.'
+template_image=$(zenity --file-selection --file-filter='jpeg | *.jpg *.jpeg')
+#first, calculate the max value (get the smaller side of the image, then divide it by 16, which is the database image resolution we use here
+template_image_shortest_side_resolution=$(identify -format '%w\n%h' "$template_image" | sort -n | head -n 1)
+template_image_longest_side_resolution=$(identify -format '%w\n%h' "$template_image" | sort -n -r | head -n 1)
+
+# The shell should floor the result of the division
+theoretical_shortest_side_max_tile_count=$(("$template_image_shortest_side_resolution" / 16))
+if [ "$max_mosaic_scale" -lt 20 ]
+then
+	zenity --title='mosaik2-gui Error' --warning --text='The resolution of the template picture is too low to create a meaningful mosaic'
+	exit 1
+fi
+
+# select the input pictures
+zenity --title='mosaik2-gui source images' --info --text='Please select the <b>folder that contains the source pictures</b> for the mosaic. The folder will be scanned recursively.\n\nOnly .jpg and .jpeg files are supported at the moment.'
+source_pictures_folder=$(zenity --file-selection --directory)
+
+# create the file list
+find "$source_pictures_folder" -type f -iregex ".*\.jpe?g$" -size +10000c -fprintf  "$mosaik2_gui_work_dir"/mosaik2-gui.file_list "%p\t%s\t%T@\n" 2>&1 | tee -a "$mosaik2_logfile" 2>&1 | zenity --title='mosaik2 is calculating' --progress --auto-kill --auto-close --pulsate --text='Creating an index of input files.'
+
+# Now, check if we have enough input files and calculate the maximum possible mosaic size with the amount of pictures available
+input_file_count=$(cat "$mosaik2_gui_work_dir"/mosaik2-gui.file_list | wc -l)
+shortest_side_max_tile_count=19
+
+while true
+do
+	shortest_side_max_tile_count=$(( shortest_side_max_tile_count + 1 ))
+	
+	if [ $(awk -v long_res="$template_image_longest_side_resolution" -v short_res="$template_image_shortest_side_resolution" -v short_side_tiles="$shortest_side_max_tile_count" 'BEGIN { calc = (long_res / (short_res / short_side_tiles)) * short_side_tiles + 1 ; print int(calc) }') -ge "$input_file_count" ]
+	then
+		break
+	fi
+done
+
+if [ "$shortest_side_max_tile_count" -lt 20 ]
+then
+	zenity --question --text='There are not enough source images for a mosaic with only unique images, <b>but</b> you can make mosaic with duplicates.\n\n<b>Do you want to make a mosaic with duplicates?</b>'
+	create_mosaic_with_duplicates=$?
+	
+	# Just a default value, since the max tile count in a non unique mosaic is not dependent on the number of input pictures.
+	shortest_side_max_tile_count=100
+	
+	# The user has chosen not to create a non unique mosaic.
+	if [ $create_mosaic_with_duplicates -ne 0 ]
+	then
+		exit 0
+	fi
+fi
+
+# Now, we get the max tile count that the shortest side of the mosaic can have for the scale slider.
+max_mosaic_tile_count_shortest_side=$(printf '%d\n%d' "$theoretical_shortest_side_max_tile_count" "$shortest_side_max_tile_count" | sort -n | head -n 1)
+
+# Zenity does not like it if max_value == min-value
+if [ "$max_mosaic_tile_count_shortest_side" -eq 20 ]
+then
+	mosaic_scale="$max_mosaic_tile_count_shortest_side"
+else
+	mosaic_scale=$(zenity --title='mosaik2-gui mosaic size' --scale --min-value=20 --value=20 --step=1 --max-value="$max_mosaic_tile_count_shortest_side" --text='Please set how big your mosaic should be. The number is the number of images that will form the shorter side of the picture.\n\nPlease keep in mind that a bigger mosaic needs more source images to look good.')
+fi
+
+# select destination file
+zenity --title='mosaik2-gui destination' --info --text='Please select the <b>destination for the finished mosaic</b>.'
+# I don't know yet why, but mosaik2 does not like spaces in filenames
+mosaic_destination=$(zenity --file-selection --save --filename='.jpg' | sed 's/[[:space:]]//g')
+
+cd "$mosaik2_gui_work_dir"
+
+# init mosaik2 database
+"$mosaik2_bin" init -r 16 "$mosaik2_gui_work_dir"/mosaik2-gui 2>&1 >> "$mosaik2_logfile"
+
+# index
+"$mosaik2_bin" index "$mosaik2_gui_work_dir"/mosaik2-gui < "$mosaik2_gui_work_dir"/mosaik2-gui.file_list 2>&1 >> "$mosaik2_logfile"  | zenity --title='mosaik2 is calculating' --progress --auto-kill --auto-close --pulsate --text='Creating database'
+
+# gather
+if [ $create_mosaic_with_duplicates -eq 0 ]
+then
+	stdbuf -oL "$mosaik2_bin" gathering -t "$mosaic_scale" "$mosaik2_gui_work_dir"/"$(basename "$mosaic_destination")" "$mosaik2_gui_work_dir"/mosaik2-gui < "$template_image" 2>&1 | tee -a "$mosaik2_logfile" 2>&1 | grep --line-buffered '%' | sed -u 's/\%.*$//; s/^[[:space:]]*//; s/[[:space:]]*$//' | zenity --title='mosaik2 is calculating' --progress --auto-kill --auto-close --time-remaining --text='Gathering information from database. This can take some time.'
+else
+	# stdbuf, grep --line-buffered and sed -u is to flush the output immediately into the pipe so that the percentage display in works.
+	stdbuf -oL "$mosaik2_bin" gathering -U -t "$mosaic_scale" "$mosaik2_gui_work_dir"/"$(basename "$mosaic_destination")" "$mosaik2_gui_work_dir"/mosaik2-gui < "$template_image" 2>&1 | tee -a "$mosaik2_logfile" 2>&1 | grep --line-buffered '%' | sed -u 's/\%.*$//; s/^[[:space:]]*//; s/[[:space:]]*$//' | zenity --title='mosaik2 is calculating' --progress --auto-kill --auto-close --time-remaining --text='Gathering information from database. This can take some time.'
+fi
+
+# join
+"$mosaik2_bin" join "$mosaik2_gui_work_dir"/"$(basename "$mosaic_destination")" "$mosaik2_gui_work_dir"/mosaik2-gui 2>&1 >> "$mosaik2_logfile" | zenity --title='mosaik2 is calculating' --progress --auto-kill --auto-close --pulsate --text='Creating the final image'
+
+mv -f "$mosaik2_gui_work_dir"/"$(basename "$mosaic_destination")" "$mosaic_destination" | zenity --title=mosaik2-gui --progress --auto-kill --auto-close --pulsate --text='Moving result to destination.'
+
+# I just use the basename of the file, because in the flatpak we use these portals and then the path to the file is completely meaningless to the user.
+zenity --info --text='<b>Finished!</b> Your mosaic '$(basename "$mosaic_destination")' is saved.'
+
+rm -rf "$mosaik2_gui_work_dir"

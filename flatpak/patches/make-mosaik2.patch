@@ -1,0 +1,22 @@
+# Adjustments for the Flatpak
+diff --git a/Makefile b/Makefile
+index 6fbbd3b..9d43410 100644
+--- a/Makefile
++++ b/Makefile
+@@ -1,6 +1,6 @@
+ 
+ COMPILER=gcc
+-CFLAGS=-O3 -Wall -march=native -mtune=native
++CFLAGS=-O3 -Wall -march=x86-64
+ MOSAIK2LIBS=src/libmosaik2.c src/libmosaik2.h src/mosaik2.h
+ 
+ all: bin/ bin/mosaik2
+@@ -9,7 +9,7 @@ bin/:
+ 	mkdir -p bin/
+ 
+ bin/mosaik2: src/mosaik2.h src/mosaik2.c bin/libmosaik2.o bin/init.o bin/index.o bin/tiler.o bin/gathering.o bin/join.o bin/duplicates.o bin/invalid.o bin/info.o bin/crop.o
+-	${COMPILER} ${CFLAGS} src/mosaik2.c bin/init.o bin/index.o bin/tiler.o bin/gathering.o bin/join.o bin/duplicates.o bin/invalid.o bin/info.o bin/crop.o bin/libmosaik2.o -o bin/mosaik2 -lm -lgd -lcrypto -lexif -lcurl
++	${COMPILER} ${CFLAGS} src/mosaik2.c bin/init.o bin/index.o bin/tiler.o bin/gathering.o bin/join.o bin/duplicates.o bin/invalid.o bin/info.o bin/crop.o bin/libmosaik2.o -o bin/mosaik2 -lm -lgd -lcrypto -lexif -lcurl -L/app/lib
+ 
+ bin/libmosaik2.o: src/libmosaik2.c src/libmosaik2.h
+ 	${COMPILER} ${CFLAGS} -c src/libmosaik2.c -o bin/libmosaik2.o -lexif -lgd

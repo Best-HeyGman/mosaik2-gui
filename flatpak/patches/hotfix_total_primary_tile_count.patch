@@ -1,0 +1,16 @@
+# The calculation of ti.total_primary_tile_count is kind of broken in mosaik2 at the moment, so for now, we trust the gui to only present valid values.
+diff --git a/src/gathering.c b/src/gathering.c
+index 814f33e..3168c39 100644
+--- a/src/gathering.c
++++ b/src/gathering.c
+@@ -129,10 +129,6 @@ int mosaik2_gathering(mosaik2_arguments *args) {
+ 
+ 	valid_md_element_count = read_thumbs_db_valid_count(&md);
+ 	needed_md_element_count = unique || fast_unique? ti.total_primary_tile_count : 1;
+-	if( valid_md_element_count < needed_md_element_count ) {
+-		fprintf(stderr, "there are too few valid candidates (%u) %sthan needed (%u)\n", valid_md_element_count, unique ? "for unique ":"", needed_md_element_count);
+-		exit(EXIT_FAILURE);
+-	}
+ 
+ 	if(args->quiet == 0) {
+ 		printf("src-image-resolution:%ix%i\n", ti.primary_tile_x_count, ti.primary_tile_y_count);

@@ -1,0 +1,53 @@
+id: com.github.Best_HeyGman.mosaik2-gui
+runtime: org.gnome.Platform
+runtime-version: '47'
+sdk: org.gnome.Sdk
+command: mosaik2-gui
+finish-args:
+  - --socket=wayland
+modules:            
+  - name: zenity
+    buildsystem: meson
+    sources:
+      - type: git
+        url: https://gitlab.gnome.org/GNOME/zenity
+        tag: 4.0.3
+        
+  - name: ImageMagick
+    buildsystem: autotools
+    sources:
+      - type: git
+        url: https://github.com/ImageMagick/ImageMagick
+        tag: 7.1.1-41
+        
+  - name: mosaik2-gui
+    buildsystem: simple
+    build-commands:
+      - install -Dm755 mosaik2-gui /app/bin
+      - install -Dm644 icons/hicolor/scalable/apps/com.github.Best_HeyGman.mosaik2-gui.svg /app/share/icons/hicolor/scalable/apps/com.github.Best_HeyGman.mosaik2-gui.svg
+      - install -Dm755 com.github.Best_HeyGman.mosaik2-gui.desktop /app/share/applications/com.github.Best_HeyGman.mosaik2-gui.desktop
+    sources:
+      - type: git
+        url: https://github.com/Best-HeyGman/mosaik2-gui
+        tag: main
+        
+  - name: mosaik2
+    buildsystem: simple
+    build-commands:
+      - make
+      - install -Dm755 bin/mosaik2 /app/bin/mosaik2
+    sources:
+      - type: git
+        url: https://github.com/Best-HeyGman/mosaik2-before-phash.git
+        tag: main
+      - type: patch
+        path: patches/make-mosaik2.patch
+      - type: patch
+        path: patches/hotfix_total_primary_tile_count.patch
+    modules:
+      - name: libgd
+        buildsystem: autotools
+        sources:
+          - type: git
+            url: https://github.com/libgd/libgd
+            tag: gd-2.3.3

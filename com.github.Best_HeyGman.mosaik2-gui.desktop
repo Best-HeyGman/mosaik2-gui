@@ -1,0 +1,6 @@
+[Desktop Entry]
+Name=Mosaik2-GUI
+Exec=mosaik2-gui
+Type=Application
+Icon=com.github.Best_HeyGman.mosaik2-gui
+Categories=Graphics;2DGraphics;RasterGraphics;Art;ImageProcessing
