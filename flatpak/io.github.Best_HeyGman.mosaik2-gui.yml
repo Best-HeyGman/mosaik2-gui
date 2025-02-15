@@ -1,4 +1,4 @@
-id: com.github.Best_HeyGman.mosaik2-gui
+id: io.github.Best_HeyGman.mosaik2-gui
 runtime: org.gnome.Platform
 runtime-version: '47'
 sdk: org.gnome.Sdk
@@ -24,8 +24,8 @@ modules:
     buildsystem: simple
     build-commands:
       - install -Dm755 mosaik2-gui /app/bin
-      - install -Dm644 icons/hicolor/scalable/apps/com.github.Best_HeyGman.mosaik2-gui.svg /app/share/icons/hicolor/scalable/apps/com.github.Best_HeyGman.mosaik2-gui.svg
-      - install -Dm755 com.github.Best_HeyGman.mosaik2-gui.desktop /app/share/applications/com.github.Best_HeyGman.mosaik2-gui.desktop
+      - install -Dm644 icons/hicolor/scalable/apps/io.github.Best_HeyGman.mosaik2-gui.svg /app/share/icons/hicolor/scalable/apps/io.github.Best_HeyGman.mosaik2-gui.svg
+      - install -Dm755 io.github.Best_HeyGman.mosaik2-gui.desktop /app/share/applications/io.github.Best_HeyGman.mosaik2-gui.desktop
     sources:
       - type: git
         url: https://github.com/Best-HeyGman/mosaik2-gui
