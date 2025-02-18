@@ -5,6 +5,7 @@ sdk: org.gnome.Sdk
 command: mosaik2-gui
 finish-args:
   - --socket=wayland
+  - --socket=fallback-x11
 modules:            
   - name: zenity
     buildsystem: meson

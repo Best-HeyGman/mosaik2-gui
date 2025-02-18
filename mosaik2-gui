@@ -57,11 +57,12 @@ shortest_side_max_tile_count=19
 
 while true
 do
-	shortest_side_max_tile_count=$(( shortest_side_max_tile_count + 1 ))
 	
 	if [ $(awk -v long_res="$template_image_longest_side_resolution" -v short_res="$template_image_shortest_side_resolution" -v short_side_tiles="$shortest_side_max_tile_count" 'BEGIN { calc = (long_res / (short_res / short_side_tiles)) * short_side_tiles + 1 ; print int(calc) }') -ge "$input_file_count" ]
 	then
 		break
+	else
+		shortest_side_max_tile_count=$(( shortest_side_max_tile_count + 1 ))
 	fi
 done
 
